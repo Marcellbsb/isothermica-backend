@@ -1,0 +1,21 @@
+# Arquivos de ambiente
+.env
+.env.*
+.env.local
+
+# Dependências  
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Desenvolvimento
+.nyc_output
+coverage/
