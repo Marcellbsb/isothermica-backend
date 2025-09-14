@@ -21,14 +21,14 @@ app.use(
 );
 
 // Configuração CORS
-app.use(
-  cors({
-    origin: "http://127.0.0.1:5501", // Use a URL exata do seu Live Server
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  })
-);
+app.use(cors({
+  origin: [
+    'https://isothermica.com.br',
+    'https://www.isothermica.com.br',
+    'https://landing-page-six-delta-69.vercel.app' // URL atual
+  ],
+  credentials: true
+}));
 
 // Middleware para aceitar requests OPTIONS (preflight)
 app.options("*", cors());
