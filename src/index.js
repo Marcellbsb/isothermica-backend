@@ -9,6 +9,7 @@ const sanitizeHtml = require("sanitize-html");
 require("dotenv").config(); 
 
 const app = express();
+app.set('trust proxy', 1); 
 const port = process.env.PORT || 5004;
 
 // Configurações de Segurança
