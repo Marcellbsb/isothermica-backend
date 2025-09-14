@@ -41,16 +41,21 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Conexão segura com MongoDB usando variáveis de ambiente
-const mongoURI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://cecelcecel415:Dayane1997@isothermica-contacts.gjushky.mongodb.net/?retryWrites=true&w=majority&appName=Isothermica-Contacts";
-
-mongoose
-  .connect(mongoURI)
-  .then(() => console.log("Conectado ao MongoDB"))
-  .catch((err) => console.error("Erro ao conectar ao MongoDB:", err));
-
+mongoose.connect(mongoURI)
+  .then(() => {
+    console.log("Conectado ao MongoDB");
+    
+    // SÓ DEPOIS de conectar ao MongoDB, inicia o servidor
+    app.listen(port, () => {
+      console.log(`Servidor rodando na porta ${port}`);
+      console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Erro ao conectar ao MongoDB:", err);
+    process.exit(1); // Finaliza o processo se não conectar
+  });
+  
 // Esquema p/ corresponder ao formulário HTML
 const contatoSchema = new mongoose.Schema(
   {
