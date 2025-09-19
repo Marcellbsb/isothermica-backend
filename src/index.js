@@ -41,20 +41,23 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-mongoose.connect(mongoURI)
-  .then(() => {
-    console.log("Conectado ao MongoDB");
-    
-    // ✅ CORRETO: Inicia o servidor APÓS conectar ao MongoDB
-    app.listen(port, () => {
-      console.log(`Servidor rodando na porta ${port}`);
-      console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
-    });
-  })
-  .catch((err) => {
-    console.error("Erro ao conectar ao MongoDB:", err);
-    process.exit(1); // Finaliza o processo se não conectar
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 30000,
+})
+.then(() => {
+  console.log("Conectado ao MongoDB");
+  
+  app.listen(port, () => {
+    console.log(`Servidor rodando na porta ${port}`);
+    console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
   });
+})
+.catch((err) => {
+  console.error("ERRO DETALHADO MongoDB:", err.message);
+  console.error("Código do erro:", err.code);
+  process.exit(1);
+});
 
 // Esquema p/ corresponder ao formulário HTML
 const contatoSchema = new mongoose.Schema(
