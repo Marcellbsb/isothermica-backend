@@ -12,6 +12,11 @@ const app = express();
 app.set('trust proxy', 1); 
 const port = process.env.PORT || 5004;
 
+// DEBUG: Log para verificar se as variáveis estão carregadas
+console.log("MONGODB_URI:", process.env.MONGODB_URI ? "EXISTE" : "NÃO EXISTE");
+console.log("PORT:", process.env.PORT);
+console.log("NODE_ENV:", process.env.NODE_ENV);
+
 // Configurações de Segurança
 app.use(
   helmet({
@@ -25,7 +30,7 @@ app.use(cors({
   origin: [
     'https://isothermica.com.br',
     'https://www.isothermica.com.br',
-    'https://landing-page-six-delta-69.vercel.app' // URL atual
+    'https://landing-page-six-delta-69.vercel.app'
   ],
   credentials: true
 }));
@@ -35,29 +40,35 @@ app.options("*", cors());
 
 // Rate limiting - máximo de 100 requisições por 15 minutos
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // limite por IP
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: "Muitas requisições deste IP, tente novamente mais tarde.",
 });
 app.use(limiter);
 
-mongoose.connect(process.env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 30000,
-})
-.then(() => {
-  console.log("Conectado ao MongoDB");
+// DEBUG: Delay artificial para capturar logs
+setTimeout(() => {
+  console.log("Iniciando conexão com MongoDB...");
   
-  app.listen(port, () => {
-    console.log(`Servidor rodando na porta ${port}`);
-    console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 30000,
+  })
+  .then(() => {
+    console.log("Conectado ao MongoDB");
+    
+    app.listen(port, () => {
+      console.log(`Servidor rodando na porta ${port}`);
+      console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    });
+  })
+  .catch((err) => {
+    console.error("ERRO DETALHADO MongoDB:", err.message);
+    console.error("Código do erro:", err.code);
+    console.error("Stack:", err.stack);
+    process.exit(1);
   });
-})
-.catch((err) => {
-  console.error("ERRO DETALHADO MongoDB:", err.message);
-  console.error("Código do erro:", err.code);
-  process.exit(1);
-});
+}, 5000); // 5 segundos de delay
 
 // Esquema p/ corresponder ao formulário HTML
 const contatoSchema = new mongoose.Schema(
@@ -91,7 +102,6 @@ const contatoSchema = new mongoose.Schema(
       trim: true,
     },
     ipAddress: {
-      // Para logging e segurança
       type: String,
       required: false,
     },
@@ -126,9 +136,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rota para buscar todos os contatos - PROTEÇÃO ADICIONAL 
+// Rota para buscar todos os contatos
 app.get("/contacts", async (req, res) => {
-  // Em produção, adicionar autenticação/autorização
   if (process.env.NODE_ENV === "production" && !req.get("X-API-Key")) {
     return res.status(401).json({ error: "Acesso não autorizado" });
   }
@@ -166,12 +175,10 @@ app.post("/contact", async (req, res) => {
   try {
     const novoContato = new Contato({
       ...req.body,
-      ipAddress: req.ip, // Registrar IP para segurança
+      ipAddress: req.ip,
     });
 
     await novoContato.save();
-
-    // Log seguro (sem dados sensíveis)
     console.log(`Novo contato recebido de: ${req.body.email}`);
 
     res.status(200).json({
@@ -205,5 +212,3 @@ app.use((error, req, res, next) => {
     ...(process.env.NODE_ENV === "development" && { details: error.message }),
   });
 });
-
-
