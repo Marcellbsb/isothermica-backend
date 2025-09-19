@@ -45,7 +45,7 @@ mongoose.connect(mongoURI)
   .then(() => {
     console.log("Conectado ao MongoDB");
     
-    // SÓ DEPOIS de conectar ao MongoDB, inicia o servidor
+    // ✅ CORRETO: Inicia o servidor APÓS conectar ao MongoDB
     app.listen(port, () => {
       console.log(`Servidor rodando na porta ${port}`);
       console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
@@ -55,7 +55,7 @@ mongoose.connect(mongoURI)
     console.error("Erro ao conectar ao MongoDB:", err);
     process.exit(1); // Finaliza o processo se não conectar
   });
-  
+
 // Esquema p/ corresponder ao formulário HTML
 const contatoSchema = new mongoose.Schema(
   {
