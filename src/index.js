@@ -93,7 +93,7 @@ const contatoSchema = new mongoose.Schema(
     service: {
       type: String,
       required: true,
-      enum: ["isolamento", "caldeiraria", "ar-condicionado", "dutos", "outros"],
+      enum: ["isolamento", "isolamento-metalico", "ar-condicionado", "dutos", "outros"],
     },
     message: {
       type: String,
@@ -158,7 +158,7 @@ app.post("/contact", async (req, res) => {
     email: Joi.string().email().required(),
     phone: Joi.string().allow("").optional(),
     service: Joi.string()
-      .valid("isolamento", "caldeiraria", "ar-condicionado", "dutos", "outros")
+      .valid("isolamento", "isolamento-metalico", "ar-condicionado", "dutos", "outros")
       .required(),
     message: Joi.string().min(10).required(),
   });
