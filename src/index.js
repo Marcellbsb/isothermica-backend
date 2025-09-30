@@ -50,18 +50,38 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CONEXÃO MONGODB - VERSÃO SÍNCRONA
-console.log("Iniciando conexão com MongoDB...");
+// CONEXÃO MONGODB - TESTE DEFINITIVO
+console.log("=== INICIANDO CONEXÃO MONGODB ===");
+console.log("MONGODB_URI:", process.env.MONGODB_URI);
 
 let isDbConnected = false;
 
+// Teste 1: Conexão direta sem opções
 mongoose.connect(process.env.MONGODB_URI)
 .then(() => {
-  console.log("Conectado ao MongoDB com sucesso!");
+  console.log("✅ CONEXÃO PRINCIPAL BEM-SUCEDIDA!");
+  console.log("Estado da conexão:", mongoose.connection.readyState);
+  console.log("Database:", mongoose.connection.db?.databaseName);
   isDbConnected = true;
 })
 .catch((err) => {
-  console.error("ERRO MongoDB:", err.message);
+  console.log("❌ ERRO NA CONEXÃO PRINCIPAL:", err.message);
+  isDbConnected = false;
+});
+
+// Monitora eventos da conexão
+mongoose.connection.on('connected', () => {
+  console.log('🎉 EVENTO: Mongoose conectado!');
+  isDbConnected = true;
+});
+
+mongoose.connection.on('error', (err) => {
+  console.log('💥 EVENTO: Erro no Mongoose:', err.message);
+  isDbConnected = false;
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('🔌 EVENTO: Mongoose desconectado');
   isDbConnected = false;
 });
 
