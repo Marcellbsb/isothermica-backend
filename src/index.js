@@ -215,6 +215,35 @@ app.get("/health", async (req, res) => {
   res.status(200).json(debugInfo);
 });
 
+// Teste de conexão detalhado (REMOVER DEPOIS)
+app.get("/test-mongodb", async (req, res) => {
+  try {
+    console.log("=== TESTE MONGODB DETALHADO ===");
+    console.log("String de conexão:", process.env.MONGODB_URI);
+    
+    // Tenta conectar e listar databases
+    const connection = await mongoose.createConnection(process.env.MONGODB_URI).asPromise();
+    const adminDb = connection.db.admin();
+    const databases = await adminDb.listDatabases();
+    
+    console.log("Databases disponíveis:", databases.databases.map(db => db.name));
+    await connection.close();
+    
+    res.json({ 
+      success: true, 
+      databases: databases.databases.map(db => db.name),
+      message: "Conexão bem-sucedida!" 
+    });
+  } catch (error) {
+    console.log("ERRO DETALHADO:", error.message);
+    res.json({ 
+      success: false, 
+      error: error.message,
+      mongodb_uri: process.env.MONGODB_URI 
+    });
+  }
+});
+
 // Middleware para rotas não encontradas
 app.use("*", (req, res) => {
   res.status(404).json({ error: "Endpoint não encontrado" });
