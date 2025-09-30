@@ -199,16 +199,20 @@ app.post("/contact", async (req, res) => {
   }
 });
 
-// Rota de health check
+// Rota de health check - COM DEBUG
 app.get("/health", async (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
-  
-  res.status(200).json({ 
-    status: "OK", 
-    database: dbStatus,
+  // DEBUG DIRETO NA RESPOSTA
+  const debugInfo = {
+    status: "OK",
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    mongodb_uri_exists: !!process.env.MONGODB_URI,
+    mongodb_uri_length: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
-  });
+  };
+  
+  console.log("DEBUG HEALTH:", debugInfo);
+  res.status(200).json(debugInfo);
 });
 
 // Middleware para rotas não encontradas
