@@ -53,12 +53,7 @@ app.use(limiter);
 // CONEXÃO MONGODB OTIMIZADA PARA VERCEL
 console.log("Iniciando conexão com MongoDB...");
 
-mongoose.connect(process.env.MONGODB_URI, {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 30000,
-  maxPoolSize: 10, // Otimizado para serverless
-  minPoolSize: 1,
-})
+mongoose.connect(process.env.MONGODB_URI)
 .then(() => {
   console.log("Conectado ao MongoDB com sucesso!");
 })
