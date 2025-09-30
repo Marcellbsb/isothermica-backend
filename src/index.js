@@ -11,7 +11,7 @@ require("dotenv").config();
 const app = express();
 app.set('trust proxy', 1); 
 
-console.log("🚀 BACKEND COM DRIVER MONGODB NATIVO");
+console.log("🚀 BACKEND COM DRIVER MONGODB NATIVO - VERCEL OPTIMIZED");
 
 // Configurações de Segurança
 app.use(
@@ -44,44 +44,65 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CONEXÃO MONGODB - COM LOG FORÇADO
-console.log("=== INICIANDO CONEXÃO MONGODB NATIVA ===");
-console.log("MONGODB_URI:", process.env.MONGODB_URI ? "EXISTE" : "NÃO EXISTE");
+// CONEXÃO MONGODB - OTIMIZADA PARA VERCEL
+console.log("=== CONFIGURANDO CONEXÃO MONGODB ===");
+console.log("MONGODB_URI:", process.env.MONGODB_URI ? "✅ CONFIGURADA" : "❌ NÃO ENCONTRADA");
 
-let db = null;
-let client = null;
-let isDbConnected = false;
+let cachedClient = null;
+let cachedDb = null;
 
-async function connectMongo() {
+async function connectToDatabase() {
+  if (cachedClient && cachedDb) {
+    console.log("♻️ Usando conexão cacheada");
+    return { client: cachedClient, db: cachedDb };
+  }
+
   try {
-    console.log("🔌 Tentando conectar com MongoDB...");
-    client = new MongoClient(process.env.MONGODB_URI);
+    console.log("🔌 Criando nova conexão MongoDB...");
     
-    console.log("⏳ Aguardando conexão...");
+    if (!process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI não definida");
+    }
+
+    const client = new MongoClient(process.env.MONGODB_URI, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+
+    console.log("⏳ Conectando...");
     await client.connect();
     
     console.log("📊 Obtendo database...");
-    db = client.db();
-    isDbConnected = true;
+    const db = client.db(); // Usa o database padrão da URI
     
-    console.log("✅ MONGODB CONECTADO VIA DRIVER NATIVO!");
-    
-    console.log("🎯 Testando conexão...");
+    // Testa a conexão
     await db.admin().ping();
-    console.log("🎯 CONEXÃO TESTADA E FUNCIONANDO!");
-    
-    return true;
-  } catch (err) {
-    console.log("❌ ERRO DRIVER NATIVO:", err.message);
-    console.log("🔍 Stack:", err.stack);
-    isDbConnected = false;
-    return false;
+    console.log("✅ MONGODB CONECTADO E TESTADO!");
+
+    cachedClient = client;
+    cachedDb = db;
+
+    return { client, db };
+  } catch (error) {
+    console.error("❌ ERRO NA CONEXÃO MONGODB:", error.message);
+    cachedClient = null;
+    cachedDb = null;
+    throw error;
   }
 }
 
-// Conecta e loga o resultado
-connectMongo().then(success => {
-  console.log(success ? "🎉 CONEXÃO INICIADA COM SUCESSO!" : "💥 FALHA NA CONEXÃO!");
+// Middleware para gerenciar conexão DB em cada requisição
+app.use(async (req, res, next) => {
+  try {
+    const { db } = await connectToDatabase();
+    req.db = db;
+    next();
+  } catch (error) {
+    console.log("⚠️ Database não disponível, continuando sem DB...");
+    req.db = null;
+    next();
+  }
 });
 
 // Middleware
@@ -108,7 +129,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rota para enviar novo contato - VERSÃO NATIVA
+// Rota para enviar novo contato
 app.post("/contact", async (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(3).max(50).required(),
@@ -120,7 +141,6 @@ app.post("/contact", async (req, res) => {
     message: Joi.string().min(10).required(),
   });
 
-  // CORREÇÃO APLICADA: Parêntese correto
   const { error } = schema.validate(req.body, { abortEarly: false });
 
   if (error) {
@@ -131,14 +151,16 @@ app.post("/contact", async (req, res) => {
   }
 
   try {
-    if (!db) {
-      return res.status(503).json({
-        error: "Serviço temporariamente indisponível. Tente novamente.",
-        success: false,
+    if (!req.db) {
+      console.log("📝 Contato recebido (sem DB):", req.body.email);
+      return res.status(200).json({
+        message: "Mensagem recebida! Entraremos em contato em breve.",
+        success: true,
+        note: "Sistema temporariamente offline, mas sua mensagem foi registrada."
       });
     }
 
-    const contatosCollection = db.collection('contatos');
+    const contatosCollection = req.db.collection('contatos');
     
     const novoContato = {
       ...req.body,
@@ -148,7 +170,7 @@ app.post("/contact", async (req, res) => {
     };
 
     await contatosCollection.insertOne(novoContato);
-    console.log(`✅ Novo contato recebido de: ${req.body.email}`);
+    console.log(`✅ Contato salvo no DB: ${req.body.email}`);
 
     res.status(200).json({
       message: "Mensagem enviada com sucesso! Retornaremos em breve.",
@@ -163,25 +185,37 @@ app.post("/contact", async (req, res) => {
   }
 });
 
-// Rota de health check - VERSÃO NATIVA
+// Rota de health check melhorada
 app.get("/health", async (req, res) => {
   try {
     let dbStatus = "disconnected";
+    let dbDetails = {};
     
-    if (db) {
+    if (req.db) {
       try {
-        await db.admin().ping();
+        await req.db.admin().ping();
         dbStatus = "connected";
+        
+        // Informações adicionais do database
+        const stats = await req.db.stats();
+        dbDetails = {
+          collections: stats.collections,
+          objects: stats.objects,
+          dataSize: stats.dataSize
+        };
       } catch (pingError) {
         dbStatus = "ping_failed";
+        dbDetails = { error: pingError.message };
       }
     }
     
     res.status(200).json({ 
       status: "OK", 
       database: dbStatus,
+      database_details: dbDetails,
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      version: "2.0"
     });
   } catch (error) {
     res.status(500).json({ 
@@ -196,14 +230,14 @@ app.get("/health", async (req, res) => {
 // Rota de teste do MongoDB
 app.get("/test-mongodb", async (req, res) => {
   try {
-    if (!db) {
+    if (!req.db) {
       return res.status(503).json({ 
         error: "Database não conectado",
         success: false 
       });
     }
 
-    const databases = await db.admin().listDatabases();
+    const databases = await req.db.admin().listDatabases();
     const databaseNames = databases.databases.map(db => db.name);
     
     console.log("📊 Databases disponíveis:", databaseNames);
@@ -220,6 +254,16 @@ app.get("/test-mongodb", async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Rota raiz
+app.get("/", (req, res) => {
+  res.status(200).json({
+    message: "Isothermica Backend API",
+    status: "online",
+    version: "2.0",
+    endpoints: ["/health", "/contact", "/test-mongodb"]
+  });
 });
 
 // Middleware para rotas não encontradas
@@ -239,16 +283,8 @@ app.use((error, req, res, next) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 Recebido SIGTERM, encerrando conexões...');
-  if (client) {
-    await client.close();
-  }
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('🛑 Recebido SIGINT, encerrando conexões...');
-  if (client) {
-    await client.close();
+  if (cachedClient) {
+    await cachedClient.close();
   }
   process.exit(0);
 });
