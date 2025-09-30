@@ -50,16 +50,19 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CONEXÃO MONGODB OTIMIZADA PARA VERCEL
+// CONEXÃO MONGODB - VERSÃO SÍNCRONA
 console.log("Iniciando conexão com MongoDB...");
+
+let isDbConnected = false;
 
 mongoose.connect(process.env.MONGODB_URI)
 .then(() => {
   console.log("Conectado ao MongoDB com sucesso!");
+  isDbConnected = true;
 })
 .catch((err) => {
   console.error("ERRO MongoDB:", err.message);
-  // Não usa process.exit() em ambiente serverless
+  isDbConnected = false;
 });
 
 // Esquema p/ corresponder ao formulário HTML
@@ -194,20 +197,16 @@ app.post("/contact", async (req, res) => {
   }
 });
 
-// Rota de health check - COM DEBUG
+// Rota de health check - VERSÃO CORRIGIDA
 app.get("/health", async (req, res) => {
-  // DEBUG DIRETO NA RESPOSTA
-  const debugInfo = {
-    status: "OK",
-    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
-    mongodb_uri_exists: !!process.env.MONGODB_URI,
-    mongodb_uri_length: process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0,
+  const dbStatus = isDbConnected ? "connected" : "disconnected";
+  
+  res.status(200).json({ 
+    status: "OK", 
+    database: dbStatus,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
-  };
-  
-  console.log("DEBUG HEALTH:", debugInfo);
-  res.status(200).json(debugInfo);
+  });
 });
 
 // Teste de conexão detalhado (REMOVER DEPOIS)
