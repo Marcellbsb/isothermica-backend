@@ -91,6 +91,7 @@ app.use((req, res, next) => {
 });
 
 // Rota para enviar novo contato - VERSÃO NATIVA
+// Rota para enviar novo contato - VERSÃO NATIVA
 app.post("/contact", async (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(3).max(50).required(),
@@ -102,7 +103,7 @@ app.post("/contact", async (req, res) => {
     message: Joi.string().min(10).required(),
   });
 
-  const { error } = schema.validate(req.body, { abortEarly: false);
+  const { error } = schema.validate(req.body, { abortEarly: false }); // ← CORRIGIDO
 
   if (error) {
     return res.status(400).json({
