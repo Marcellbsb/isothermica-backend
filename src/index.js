@@ -29,6 +29,7 @@ app.use(
   })
 );
 
+
 // Configuração CORS - Atualizada
 app.use(cors({
   origin: [
