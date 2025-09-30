@@ -11,6 +11,9 @@ require("dotenv").config();
 const app = express();
 app.set('trust proxy', 1); 
 
+// 🔥 FORÇAR ATUALIZAÇÃO - REMOVER DEPOIS
+console.log("🚀 CÓDIGO ATUALIZADO EM 30/09 - VERSÃO 2.0");
+
 // DEBUG: Verificar a string de conexão (REMOVER DEPOIS)
 console.log("=== DEBUG MONGODB ===");
 console.log("MONGODB_URI existe?", !!process.env.MONGODB_URI);
