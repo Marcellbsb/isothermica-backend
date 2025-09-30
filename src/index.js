@@ -44,21 +44,27 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CONEXÃO MONGODB - DRIVER NATIVO
+// CONEXÃO MONGODB - DRIVER NATIVO SIMPLES
 console.log("=== INICIANDO CONEXÃO MONGODB NATIVA ===");
 
-let client = null;
 let db = null;
+let isDbConnected = false;
 
 async function connectMongo() {
   try {
-    client = new MongoClient(process.env.MONGODB_URI);
+    const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     db = client.db(); // Usa o database default
+    isDbConnected = true;
     console.log("✅ MONGODB CONECTADO VIA DRIVER NATIVO!");
+    
+    // Testa a conexão
+    await db.admin().ping();
+    console.log("🎯 CONEXÃO TESTADA E FUNCIONANDO!");
     return true;
   } catch (err) {
     console.log("❌ ERRO DRIVER NATIVO:", err.message);
+    isDbConnected = false;
     return false;
   }
 }
