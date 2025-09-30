@@ -222,13 +222,20 @@ app.post("/contact", async (req, res) => {
   }
 });
 
-// Rota de health check - VERSÃO CORRIGIDA
+// Rota de health check - VERSÃO RADICAL
 app.get("/health", async (req, res) => {
-  const dbStatus = isDbConnected ? "connected" : "disconnected";
+  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  
+  console.log("🔍 HEALTH CHECK - Estado real:", {
+    readyState: mongoose.connection.readyState,
+    isDbConnected: isDbConnected,
+    db: db ? "existe" : "null"
+  });
   
   res.status(200).json({ 
     status: "OK", 
     database: dbStatus,
+    readyState: mongoose.connection.readyState,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
