@@ -44,33 +44,44 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CONEXÃO MONGODB - DRIVER NATIVO SIMPLES
+// CONEXÃO MONGODB - COM LOG FORÇADO
 console.log("=== INICIANDO CONEXÃO MONGODB NATIVA ===");
+console.log("MONGODB_URI:", process.env.MONGODB_URI ? "EXISTE" : "NÃO EXISTE");
 
 let db = null;
 let isDbConnected = false;
 
 async function connectMongo() {
   try {
+    console.log("🔌 Tentando conectar com MongoDB...");
     const client = new MongoClient(process.env.MONGODB_URI);
+    
+    console.log("⏳ Aguardando conexão...");
     await client.connect();
-    db = client.db(); // Usa o database default
+    
+    console.log("📊 Obtendo database...");
+    db = client.db();
     isDbConnected = true;
+    
     console.log("✅ MONGODB CONECTADO VIA DRIVER NATIVO!");
     
-    // Testa a conexão
+    console.log("🎯 Testando conexão...");
     await db.admin().ping();
     console.log("🎯 CONEXÃO TESTADA E FUNCIONANDO!");
+    
     return true;
   } catch (err) {
     console.log("❌ ERRO DRIVER NATIVO:", err.message);
+    console.log("🔍 Stack:", err.stack);
     isDbConnected = false;
     return false;
   }
 }
 
-// Conecta imediatamente
-connectMongo();
+// Conecta e loga o resultado
+connectMongo().then(success => {
+  console.log(success ? "🎉 CONEXÃO INICIADA COM SUCESSO!" : "💥 FALHA NA CONEXÃO!");
+});
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: false, limit: "10kb" }));
