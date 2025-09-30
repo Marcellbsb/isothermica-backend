@@ -1,25 +1,17 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const Joi = require("joi");
 const sanitizeHtml = require("sanitize-html");
+const { MongoClient } = require('mongodb');
 require("dotenv").config(); 
 
 const app = express();
 app.set('trust proxy', 1); 
 
-// 🔥 FORÇAR ATUALIZAÇÃO - REMOVER DEPOIS
-console.log("🚀 CÓDIGO ATUALIZADO EM 30/09 - VERSÃO 2.0");
-
-// DEBUG: Verificar a string de conexão (REMOVER DEPOIS)
-console.log("=== DEBUG MONGODB ===");
-console.log("MONGODB_URI existe?", !!process.env.MONGODB_URI);
-console.log("MONGODB_URI length:", process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0);
-console.log("MONGODB_URI starts with:", process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + "..." : "null");
-console.log("=== FIM DEBUG ===");
+console.log("🚀 BACKEND COM DRIVER MONGODB NATIVO");
 
 // Configurações de Segurança
 app.use(
@@ -28,7 +20,6 @@ app.use(
     crossOriginEmbedderPolicy: false,
   })
 );
-
 
 // Configuração CORS - Atualizada
 app.use(cors({
@@ -43,10 +34,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Middleware para aceitar requests OPTIONS (preflight) - MELHORADO
 app.options('*', cors());
 
-// Rate limiting - máximo de 100 requisições por 15 minutos
+// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -54,88 +44,33 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CONEXÃO MONGODB - VERSÃO SERVERLESS
-console.log("=== INICIANDO CONEXÃO MONGODB SERVERLESS ===");
+// CONEXÃO MONGODB - DRIVER NATIVO
+console.log("=== INICIANDO CONEXÃO MONGODB NATIVA ===");
 
+let client = null;
 let db = null;
-let isDbConnected = false;
 
-// Conexão otimizada para serverless
-mongoose.connect(process.env.MONGODB_URI, {
-  bufferCommands: false,
-  bufferMaxEntries: 0
-})
-.then(() => {
-  console.log("✅ MONGODB CONECTADO VIA SERVERLESS!");
-  db = mongoose.connection.db;
-  isDbConnected = true;
-})
-.catch((err) => {
-  console.log("❌ ERRO SERVERLESS:", err.message);
-  isDbConnected = false;
-});
-// Monitora eventos da conexão
-mongoose.connection.on('connected', () => {
-  console.log('🎉 EVENTO: Mongoose conectado!');
-  isDbConnected = true;
-});
+async function connectMongo() {
+  try {
+    client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    db = client.db(); // Usa o database default
+    console.log("✅ MONGODB CONECTADO VIA DRIVER NATIVO!");
+    return true;
+  } catch (err) {
+    console.log("❌ ERRO DRIVER NATIVO:", err.message);
+    return false;
+  }
+}
 
-mongoose.connection.on('error', (err) => {
-  console.log('💥 EVENTO: Erro no Mongoose:', err.message);
-  isDbConnected = false;
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('🔌 EVENTO: Mongoose desconectado');
-  isDbConnected = false;
-});
-
-// Esquema p/ corresponder ao formulário HTML
-const contatoSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      minlength: 3,
-      maxlength: 50,
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      lowercase: true,
-      trim: true,
-    },
-    phone: {
-      type: String,
-      trim: true,
-    },
-    service: {
-      type: String,
-      required: true,
-      enum: ["isolamento", "isolamento-metalico", "ar-condicionado", "dutos", "outros"],
-    },
-    message: {
-      type: String,
-      required: true,
-      minlength: 10,
-      trim: true,
-    },
-    ipAddress: {
-      type: String,
-      required: false,
-    },
-  },
-  { timestamps: true }
-);
-
-const Contato = mongoose.model("Contato", contatoSchema);
+// Conecta imediatamente
+connectMongo();
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: false, limit: "10kb" }));
 app.use(bodyParser.json({ limit: "10kb" }));
 
-// Função de sanitização contra XSS
+// Função de sanitização
 const sanitizeInput = (data) => {
   if (typeof data === "string") {
     return sanitizeHtml(data, {
@@ -146,7 +81,6 @@ const sanitizeInput = (data) => {
   return data;
 };
 
-// Middleware de sanitização
 app.use((req, res, next) => {
   if (req.body) {
     Object.keys(req.body).forEach((key) => {
@@ -156,22 +90,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rota para buscar todos os contatos
-app.get("/contacts", async (req, res) => {
-  if (process.env.NODE_ENV === "production" && !req.get("X-API-Key")) {
-    return res.status(401).json({ error: "Acesso não autorizado" });
-  }
-
-  try {
-    const contacts = await Contato.find().sort({ createdAt: -1 });
-    res.json(contacts);
-  } catch (error) {
-    console.error("Erro ao buscar contatos:", error);
-    res.status(500).json({ error: "Ocorreu um erro ao buscar os contatos." });
-  }
-});
-
-// Rota para enviar novo contato
+// Rota para enviar novo contato - VERSÃO NATIVA
 app.post("/contact", async (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(3).max(50).required(),
@@ -183,7 +102,7 @@ app.post("/contact", async (req, res) => {
     message: Joi.string().min(10).required(),
   });
 
-  const { error } = schema.validate(req.body, { abortEarly: false });
+  const { error } = schema.validate(req.body, { abortEarly: false);
 
   if (error) {
     return res.status(400).json({
@@ -193,20 +112,23 @@ app.post("/contact", async (req, res) => {
   }
 
   try {
-    // Verifica se a conexão com MongoDB está ok
-    if (mongoose.connection.readyState !== 1) {
+    if (!db) {
       return res.status(503).json({
         error: "Serviço temporariamente indisponível. Tente novamente.",
         success: false,
       });
     }
 
-    const novoContato = new Contato({
+    const contatosCollection = db.collection('contatos');
+    
+    const novoContato = {
       ...req.body,
       ipAddress: req.ip,
-    });
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
 
-    await novoContato.save();
+    await contatosCollection.insertOne(novoContato);
     console.log(`Novo contato recebido de: ${req.body.email}`);
 
     res.status(200).json({
@@ -222,52 +144,16 @@ app.post("/contact", async (req, res) => {
   }
 });
 
-// Rota de health check - VERSÃO RADICAL
+// Rota de health check - VERSÃO NATIVA
 app.get("/health", async (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
-  
-  console.log("🔍 HEALTH CHECK - Estado real:", {
-    readyState: mongoose.connection.readyState,
-    isDbConnected: isDbConnected,
-    db: db ? "existe" : "null"
-  });
+  const isConnected = db ? true : false;
   
   res.status(200).json({ 
     status: "OK", 
-    database: dbStatus,
-    readyState: mongoose.connection.readyState,
+    database: isConnected ? "connected" : "disconnected",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
-});
-
-// Teste de conexão detalhado (REMOVER DEPOIS)
-app.get("/test-mongodb", async (req, res) => {
-  try {
-    console.log("=== TESTE MONGODB DETALHADO ===");
-    console.log("String de conexão:", process.env.MONGODB_URI);
-    
-    // Tenta conectar e listar databases
-    const connection = await mongoose.createConnection(process.env.MONGODB_URI).asPromise();
-    const adminDb = connection.db.admin();
-    const databases = await adminDb.listDatabases();
-    
-    console.log("Databases disponíveis:", databases.databases.map(db => db.name));
-    await connection.close();
-    
-    res.json({ 
-      success: true, 
-      databases: databases.databases.map(db => db.name),
-      message: "Conexão bem-sucedida!" 
-    });
-  } catch (error) {
-    console.log("ERRO DETALHADO:", error.message);
-    res.json({ 
-      success: false, 
-      error: error.message,
-      mongodb_uri: process.env.MONGODB_URI 
-    });
-  }
 });
 
 // Middleware para rotas não encontradas
@@ -284,5 +170,4 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Export para Vercel Serverless Functions - VERSÃO SIMPLIFICADA
 module.exports = app;
