@@ -54,25 +54,26 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CONEXÃO MONGODB - TESTE DEFINITIVO
-console.log("=== INICIANDO CONEXÃO MONGODB ===");
-console.log("MONGODB_URI:", process.env.MONGODB_URI);
+// CONEXÃO MONGODB - VERSÃO SERVERLESS
+console.log("=== INICIANDO CONEXÃO MONGODB SERVERLESS ===");
 
+let db = null;
 let isDbConnected = false;
 
-// Teste 1: Conexão direta sem opções
-mongoose.connect(process.env.MONGODB_URI)
+// Conexão otimizada para serverless
+mongoose.connect(process.env.MONGODB_URI, {
+  bufferCommands: false,
+  bufferMaxEntries: 0
+})
 .then(() => {
-  console.log("✅ CONEXÃO PRINCIPAL BEM-SUCEDIDA!");
-  console.log("Estado da conexão:", mongoose.connection.readyState);
-  console.log("Database:", mongoose.connection.db?.databaseName);
+  console.log("✅ MONGODB CONECTADO VIA SERVERLESS!");
+  db = mongoose.connection.db;
   isDbConnected = true;
 })
 .catch((err) => {
-  console.log("❌ ERRO NA CONEXÃO PRINCIPAL:", err.message);
+  console.log("❌ ERRO SERVERLESS:", err.message);
   isDbConnected = false;
 });
-
 // Monitora eventos da conexão
 mongoose.connection.on('connected', () => {
   console.log('🎉 EVENTO: Mongoose conectado!');
