@@ -24,19 +24,21 @@ app.use(
   })
 );
 
-// Configuração CORS - Atualizada para incluir o novo domínio do backend
+// Configuração CORS - Atualizada
 app.use(cors({
   origin: [
     'https://isothermica.com.br',
     'https://www.isothermica.com.br',
     'https://landing-page-six-delta-69.vercel.app',
-    'https://*.vercel.app' // Permite qualquer subdomínio da Vercel
+    'https://isothermica-backend.vercel.app'
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Middleware para aceitar requests OPTIONS (preflight)
-app.options("*", cors());
+// Middleware para aceitar requests OPTIONS (preflight) - MELHORADO
+app.options('*', cors());
 
 // Rate limiting - máximo de 100 requisições por 15 minutos
 const limiter = rateLimit({
