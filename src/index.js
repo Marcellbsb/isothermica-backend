@@ -11,10 +11,12 @@ require("dotenv").config();
 const app = express();
 app.set('trust proxy', 1); 
 
-// DEBUG: Log para verificar se as variáveis estão carregadas
-console.log("MONGODB_URI:", process.env.MONGODB_URI ? "EXISTE" : "NÃO EXISTE");
-console.log("NODE_ENV:", process.env.NODE_ENV);
-console.log("VERCEL:", process.env.VERCEL ? "SIM" : "NÃO");
+// DEBUG: Verificar a string de conexão (REMOVER DEPOIS)
+console.log("=== DEBUG MONGODB ===");
+console.log("MONGODB_URI existe?", !!process.env.MONGODB_URI);
+console.log("MONGODB_URI length:", process.env.MONGODB_URI ? process.env.MONGODB_URI.length : 0);
+console.log("MONGODB_URI starts with:", process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + "..." : "null");
+console.log("=== FIM DEBUG ===");
 
 // Configurações de Segurança
 app.use(
