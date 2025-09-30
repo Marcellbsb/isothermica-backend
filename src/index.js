@@ -49,12 +49,13 @@ console.log("=== INICIANDO CONEXÃO MONGODB NATIVA ===");
 console.log("MONGODB_URI:", process.env.MONGODB_URI ? "EXISTE" : "NÃO EXISTE");
 
 let db = null;
+let client = null;
 let isDbConnected = false;
 
 async function connectMongo() {
   try {
     console.log("🔌 Tentando conectar com MongoDB...");
-    const client = new MongoClient(process.env.MONGODB_URI);
+    client = new MongoClient(process.env.MONGODB_URI);
     
     console.log("⏳ Aguardando conexão...");
     await client.connect();
@@ -108,7 +109,6 @@ app.use((req, res, next) => {
 });
 
 // Rota para enviar novo contato - VERSÃO NATIVA
-// Rota para enviar novo contato - VERSÃO NATIVA
 app.post("/contact", async (req, res) => {
   const schema = Joi.object({
     name: Joi.string().min(3).max(50).required(),
@@ -120,7 +120,8 @@ app.post("/contact", async (req, res) => {
     message: Joi.string().min(10).required(),
   });
 
-  const { error } = schema.validate(req.body, { abortEarly: false }); // ← CORRIGIDO
+  // CORREÇÃO APLICADA: Parêntese correto
+  const { error } = schema.validate(req.body, { abortEarly: false });
 
   if (error) {
     return res.status(400).json({
@@ -147,14 +148,14 @@ app.post("/contact", async (req, res) => {
     };
 
     await contatosCollection.insertOne(novoContato);
-    console.log(`Novo contato recebido de: ${req.body.email}`);
+    console.log(`✅ Novo contato recebido de: ${req.body.email}`);
 
     res.status(200).json({
       message: "Mensagem enviada com sucesso! Retornaremos em breve.",
       success: true,
     });
   } catch (err) {
-    console.error("Erro ao salvar contato:", err);
+    console.error("❌ Erro ao salvar contato:", err);
     res.status(500).json({
       error: "Erro ao processar sua mensagem. Tente novamente mais tarde.",
       success: false,
@@ -164,14 +165,61 @@ app.post("/contact", async (req, res) => {
 
 // Rota de health check - VERSÃO NATIVA
 app.get("/health", async (req, res) => {
-  const isConnected = db ? true : false;
-  
-  res.status(200).json({ 
-    status: "OK", 
-    database: isConnected ? "connected" : "disconnected",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+  try {
+    let dbStatus = "disconnected";
+    
+    if (db) {
+      try {
+        await db.admin().ping();
+        dbStatus = "connected";
+      } catch (pingError) {
+        dbStatus = "ping_failed";
+      }
+    }
+    
+    res.status(200).json({ 
+      status: "OK", 
+      database: dbStatus,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: "ERROR", 
+      database: "error",
+      timestamp: new Date().toISOString(),
+      error: error.message 
+    });
+  }
+});
+
+// Rota de teste do MongoDB
+app.get("/test-mongodb", async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(503).json({ 
+        error: "Database não conectado",
+        success: false 
+      });
+    }
+
+    const databases = await db.admin().listDatabases();
+    const databaseNames = databases.databases.map(db => db.name);
+    
+    console.log("📊 Databases disponíveis:", databaseNames);
+    
+    res.status(200).json({
+      success: true,
+      databases: databaseNames,
+      message: "Conexão MongoDB testada com sucesso"
+    });
+  } catch (error) {
+    console.error("❌ Erro no teste MongoDB:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // Middleware para rotas não encontradas
@@ -181,11 +229,28 @@ app.use("*", (req, res) => {
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-  console.error("Erro não tratado:", error);
+  console.error("❌ Erro não tratado:", error);
   res.status(500).json({
     error: "Erro interno do servidor",
     ...(process.env.NODE_ENV === "development" && { details: error.message }),
   });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('🛑 Recebido SIGTERM, encerrando conexões...');
+  if (client) {
+    await client.close();
+  }
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('🛑 Recebido SIGINT, encerrando conexões...');
+  if (client) {
+    await client.close();
+  }
+  process.exit(0);
 });
 
 module.exports = app;
