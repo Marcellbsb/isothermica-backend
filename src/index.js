@@ -223,23 +223,5 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Export para Vercel Serverless Functions - VERSÃO CORRIGIDA
-module.exports = (req, res) => {
-  // Habilita CORS imediatamente
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', 'https://isothermica.com.br');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // Passa a requisição para o Express
-  return app(req, res);
-};
+// Export para Vercel Serverless Functions - VERSÃO SIMPLIFICADA
+module.exports = app;
