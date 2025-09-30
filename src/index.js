@@ -10,12 +10,11 @@ require("dotenv").config();
 
 const app = express();
 app.set('trust proxy', 1); 
-const port = process.env.PORT || 5004;
 
 // DEBUG: Log para verificar se as variáveis estão carregadas
 console.log("MONGODB_URI:", process.env.MONGODB_URI ? "EXISTE" : "NÃO EXISTE");
-console.log("PORT:", process.env.PORT);
 console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("VERCEL:", process.env.VERCEL ? "SIM" : "NÃO");
 
 // Configurações de Segurança
 app.use(
@@ -25,12 +24,13 @@ app.use(
   })
 );
 
-// Configuração CORS
+// Configuração CORS - Atualizada para incluir o novo domínio do backend
 app.use(cors({
   origin: [
     'https://isothermica.com.br',
     'https://www.isothermica.com.br',
-    'https://landing-page-six-delta-69.vercel.app'
+    'https://landing-page-six-delta-69.vercel.app',
+    'https://*.vercel.app' // Permite qualquer subdomínio da Vercel
   ],
   credentials: true
 }));
@@ -46,29 +46,22 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// DEBUG: Delay artificial para capturar logs
-setTimeout(() => {
-  console.log("Iniciando conexão com MongoDB...");
-  
-  mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 30000,
-  })
-  .then(() => {
-    console.log("Conectado ao MongoDB");
-    
-    app.listen(port, () => {
-      console.log(`Servidor rodando na porta ${port}`);
-      console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
-    });
-  })
-  .catch((err) => {
-    console.error("ERRO DETALHADO MongoDB:", err.message);
-    console.error("Código do erro:", err.code);
-    console.error("Stack:", err.stack);
-    process.exit(1);
-  });
-}, 5000); // 5 segundos de delay
+// CONEXÃO MONGODB OTIMIZADA PARA VERCEL
+console.log("Iniciando conexão com MongoDB...");
+
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 30000,
+  maxPoolSize: 10, // Otimizado para serverless
+  minPoolSize: 1,
+})
+.then(() => {
+  console.log("Conectado ao MongoDB com sucesso!");
+})
+.catch((err) => {
+  console.error("ERRO MongoDB:", err.message);
+  // Não usa process.exit() em ambiente serverless
+});
 
 // Esquema p/ corresponder ao formulário HTML
 const contatoSchema = new mongoose.Schema(
@@ -173,6 +166,14 @@ app.post("/contact", async (req, res) => {
   }
 
   try {
+    // Verifica se a conexão com MongoDB está ok
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        error: "Serviço temporariamente indisponível. Tente novamente.",
+        success: false,
+      });
+    }
+
     const novoContato = new Contato({
       ...req.body,
       ipAddress: req.ip,
@@ -195,8 +196,15 @@ app.post("/contact", async (req, res) => {
 });
 
 // Rota de health check
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+app.get("/health", async (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  
+  res.status(200).json({ 
+    status: "OK", 
+    database: dbStatus,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Middleware para rotas não encontradas
@@ -212,3 +220,6 @@ app.use((error, req, res, next) => {
     ...(process.env.NODE_ENV === "development" && { details: error.message }),
   });
 });
+
+// Export para Vercel Serverless Functions
+module.exports = app;
