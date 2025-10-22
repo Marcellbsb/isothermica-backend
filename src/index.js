@@ -21,18 +21,42 @@ app.use(
   })
 );
 
-// Configuração CORS - Atualizada
+// E ADICIONE TAMBÉM ESTE MIDDLEWARE MANUAL NO TOPO
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://isothermica.com.br',
+    'https://isothermica-backend.vercel.app'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+
+// NO SEU BACKEND - ADICIONE ESTE CORS URGENTE
 app.use(cors({
   origin: [
     'https://isothermica.com.br',
     'https://www.isothermica.com.br',
-    'https://landing-page-six-delta-69.vercel.app',
-    'https://isothermica-backend-api-v2.vercel.app/'
+    'https://isothermica-backend-api-v2.vercel.app',
+    'https://isothermica-backend.vercel.app',  // ← URL QUE ESTÁ NO FRONTEND ANTIGO
+    'https://landing-page-six-delta-69.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 
 app.options('*', cors());
 
