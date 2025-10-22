@@ -21,17 +21,30 @@ app.use(
   })
 );
 
-// Configuração CORS - Atualizada
+// Configuração CORS MAIS SEGURA
+const allowedOrigins = [
+  'https://isothermica.com.br',
+  'https://www.isothermica.com.br',
+  'https://landing-page-six-delta-69.vercel.app',
+  'https://isothermica-backend-api-v2.vercel.app',
+  'https://isothermica-backend.vercel.app'
+];
+
 app.use(cors({
-  origin: [
-    'https://isothermica.com.br',
-    'https://www.isothermica.com.br',
-    'https://landing-page-six-delta-69.vercel.app',
-    'https://isothermica-backend.vercel.app'
-  ],
+  origin: function (origin, callback) {
+    // Permite requisições sem origin (Postman, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('🚫 CORS bloqueado para origem:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 app.options('*', cors());
